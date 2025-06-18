@@ -8,7 +8,7 @@ import express from 'express';
  * @param {string} [options.routeName] - Optional route name (not used internally here)
  * @returns {import("express").Router}
  */
-export default function createCrudRouter(model, options = {}) {
+export default function createCrud(model, options = {}) {
   const router = express.Router();
   const excluded = options.excluded || [];
   const hooks = options.hooks || {};
