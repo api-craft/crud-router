@@ -1,21 +1,43 @@
 {
-  "name": "crud-router",
+  "name": "@api-craft/crud-router",
   "version": "1.0.0",
-  "description": "",
+  "description": "A lightweight Express middleware to automatically generate CRUD routes and controllers from Mongoose models, simplifying API development.",
   "main": "index.js",
   "scripts": {
     "test": "vitest tests/",
     "build": "tsc"
   },
   "type": "module",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "express",
+    "mongoose",
+    "crud",
+    "api",
+    "router",
+    "rest",
+    "nodejs",
+    "backend",
+    "automation",
+    "generate",
+    "middleware",
+    "javascript",
+    "typescript"
+  ],
+  "author": "P.Thamilselven",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/api-craft/crud-router.git"
+  },
+  "license": "MIT",
   "packageManager": "pnpm@10.6.3",
   "dependencies": {
     "express": "^5.1.0",
     "mongoose": "^8.16.0"
   },
+
   "devDependencies": {
     "vitest": "^3.2.4"
   },
