@@ -1,2 +1,2 @@
-export { default as createCrudRouter } from './createCrudRouter.js';
+export { default as createCrud } from './createCrudRouter.js';
 export * from "./types.js";
