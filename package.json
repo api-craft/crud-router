@@ -1,6 +1,6 @@
 {
   "name": "@api-craft/crud-router",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A lightweight Express middleware to automatically generate CRUD routes and controllers from Mongoose models, simplifying API development.",
   "main": "./src/index.js",
   "scripts": {
@@ -37,7 +37,6 @@
     "express": "^5.1.0",
     "mongoose": "^8.16.0"
   },
-
   "devDependencies": {
     "vitest": "^3.2.4"
   },
