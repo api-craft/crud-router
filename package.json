@@ -4,7 +4,7 @@
   "description": "A lightweight Express middleware to automatically generate CRUD routes and controllers from Mongoose models, simplifying API development.",
   "main": "./src/index.js",
   "scripts": {
-    "test": "vitest tests/",
+    "test": "npx vitest run --reporter verbose",
     "build": "tsc"
   },
   "type": "module",
@@ -38,6 +38,8 @@
     "mongoose": "^8.16.0"
   },
   "devDependencies": {
+    "dotenv": "^16.5.0",
+    "supertest": "^7.1.1",
     "vitest": "^3.2.4"
   },
   "pnpm": {
