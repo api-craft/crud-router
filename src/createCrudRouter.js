@@ -1,5 +1,5 @@
 import express from 'express';
-import queryParser from './queryParser';
+import queryParser from './queryParser.js';
 
 /**
  * @param {import("mongoose").Model} model
