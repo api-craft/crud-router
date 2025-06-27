@@ -1,13 +1,12 @@
-import express from 'express';
-import queryParser from './queryParser';
+import express from "express";
+import queryParser from "./queryParser.js";
 
 /**
  * @param {import("mongoose").Model} model
  * @param {Object} [options]
- * @param {string[]} [options.excluded] - Array of methods to exclude
- * @param {Object} [options.hooks] - Optional hooks for lifecycle events
- * @param {Object} [options.middlewares] - Optional middleware mappings for routes
- * @param {string} [options.routeName] - Optional route name (not used internally here)
+ * @param {string[]} [options.excluded]
+ * @param {Object} [options.hooks]
+ * @param {Object} [options.middlewares]
  * @returns {import("express").Router}
  */
 export default function createCrud(model, options = {}) {
@@ -16,73 +15,162 @@ export default function createCrud(model, options = {}) {
   const hooks = options.hooks || {};
   const middlewares = options.middlewares || {};
 
-  // GET All with query parsing (filters, pagination)
+  // GET All with query parsing
   if (!excluded.includes("getAll")) {
-    router.get(
-      "/",
-      ...(middlewares.getAll || []),
-      async (req, res) => {
+    router.get("/", ...(middlewares.getAll || []), async (req, res) => {
+      try {
+        if (hooks.beforeGetAll) await hooks.beforeGetAll(req);
+
         const { filters, limit, pagination } = queryParser(req.query);
         const results = await model
           .find(filters)
           .skip(pagination.skip)
           .limit(limit);
+
+        if (hooks.afterGetAll) await hooks.afterGetAll(results);
+
         return res.json(results);
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
       }
-    );
+    });
   }
 
+  // GET by ID
   if (!excluded.includes("getById")) {
-    router.get(
-      "/:id",
-      ...(middlewares.getById || []),
-      async (req, res) => {
+    router.get("/:id", ...(middlewares.getById || []), async (req, res) => {
+      try {
+        if (hooks.beforeGetById) await hooks.beforeGetById(req.params.id);
+
         const item = await model.findById(req.params.id);
         if (!item) return res.status(404).json({ error: "Not found" });
+
+        if (hooks.afterGetById) await hooks.afterGetById(item);
+
         return res.json(item);
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
       }
-    );
+    });
   }
 
+  // CREATE (single or bulk based on body)
   if (!excluded.includes("create")) {
-    router.post(
-      "/",
-      ...(middlewares.create || []),
-      async (req, res) => {
-        const data = hooks.beforeCreate ? await hooks.beforeCreate(req.body) : req.body;
-        const created = await model.create(data);
+    router.post("/", ...(middlewares.create || []), async (req, res) => {
+      try {
+        let data = req.body;
+        if (hooks.beforeCreate) data = await hooks.beforeCreate(data);
+
+        const created = Array.isArray(data)
+          ? await model.insertMany(data)
+          : await model.create(data);
+
         if (hooks.afterCreate) await hooks.afterCreate(created);
+
         return res.status(201).json(created);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
       }
-    );
+    });
   }
 
+  // BULK UPDATE
   if (!excluded.includes("update")) {
-    router.put(
-      "/:id",
-      ...(middlewares.update || []),
-      async (req, res) => {
-        const data = hooks.beforeUpdate ? await hooks.beforeUpdate(req.params.id, req.body) : req.body;
-        const updated = await model.findByIdAndUpdate(req.params.id, data, { new: true });
-        if (!updated) return res.status(404).json({ error: "Not found" });
-        if (hooks.afterUpdate) await hooks.afterUpdate(updated);
-        return res.json(updated);
+    router.put("/bulk", ...(middlewares.update || []), async (req, res) => {
+      try {
+        let updates = req.body; // Array of { filter, update }
+        if (!Array.isArray(updates))
+          return res.status(400).json({ error: "Expected array of updates" });
+
+        if (hooks.beforeUpdate) {
+          updates = await hooks.beforeUpdate(updates);
+        }
+
+        const result = await model.bulkWrite(
+          updates.map((u) => ({
+            updateOne: {
+              filter: u.filter,
+              update: u.update,
+            },
+          }))
+        );
+
+        if (hooks.afterUpdate) await hooks.afterUpdate(result);
+
+        return res.json(result);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
       }
-    );
+    });
+
+    // Single update
+    router.put("/:id", ...(middlewares.update || []), async (req, res) => {
+      try {
+        let data = hooks.beforeUpdate
+          ? await hooks.beforeUpdate([{ filter: { _id: req.params.id }, update: req.body }])
+          : req.body;
+
+        const updated = await model.findByIdAndUpdate(req.params.id, data.update || data, {
+          new: true,
+        });
+
+        if (!updated) return res.status(404).json({ error: "Not found" });
+
+        if (hooks.afterUpdate) await hooks.afterUpdate(updated);
+
+        return res.json(updated);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
+    });
   }
 
+  // BULK DELETE
   if (!excluded.includes("remove")) {
     router.delete(
-      "/:id",
+      "/bulk",
       ...(middlewares.remove || []),
       async (req, res) => {
-        if (hooks.beforeDelete) await hooks.beforeDelete(req.params.id);
-        const deleted = await model.findByIdAndDelete(req.params.id);
-        if (!deleted) return res.status(404).json({ error: "Not found" });
-        if (hooks.afterDelete) await hooks.afterDelete(deleted);
-        return res.json(deleted);
+        try {
+          let filters = req.body; // Array of filters
+
+          if (!Array.isArray(filters))
+            return res.status(400).json({ error: "Expected array of filters" });
+
+          if (hooks.beforeDelete) {
+            filters = await hooks.beforeDelete(filters);
+          }
+
+          const result = await model.bulkWrite(
+            filters.map((f) => ({
+              deleteOne: { filter: f },
+            }))
+          );
+
+          if (hooks.afterDelete) await hooks.afterDelete(result);
+
+          return res.json(result);
+        } catch (err) {
+          return res.status(400).json({ error: err.message });
+        }
       }
     );
+
+    // Single delete
+    router.delete("/:id", ...(middlewares.remove || []), async (req, res) => {
+      try {
+        if (hooks.beforeDelete) await hooks.beforeDelete([{ _id: req.params.id }]);
+
+        const deleted = await model.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ error: "Not found" });
+
+        if (hooks.afterDelete) await hooks.afterDelete(deleted);
+
+        return res.json(deleted);
+      } catch (err) {
+        return res.status(400).json({ error: err.message });
+      }
+    });
   }
 
   return router;
