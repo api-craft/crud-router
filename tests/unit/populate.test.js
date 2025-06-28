@@ -1,89 +1,44 @@
-import { describe, test, expect, beforeEach, vi } from "vitest";
+import { describe, test, expect } from "vitest";
 import applyPopulate from "../../src/applyPopulate.js";
 
-describe("applyPopulate utility", () => {
-  let query;
-
-  beforeEach(() => {
-    query = {
-      populate: vi.fn().mockReturnThis(),
-    };
+describe("applyPopulate - Query Param Only", () => {
+  test("handles string param: comma-separated", () => {
+    const fields = applyPopulate("author,comments.user");
+    expect(fields).toEqual(["author", "comments.user"]);
   });
 
-  test("applies populate with string param", () => {
-    const result = applyPopulate(query, "author,comments.user");
-    expect(query.populate).toHaveBeenCalledTimes(2);
-    expect(query.populate).toHaveBeenCalledWith("author");
-    expect(query.populate).toHaveBeenCalledWith("comments.user");
-    expect(result).toBe(query);
+  test("handles array param", () => {
+    const fields = applyPopulate(["author", "comments.user"]);
+    expect(fields).toEqual(["author", "comments.user"]);
   });
 
-  test("applies populate with array param", () => {
-    const result = applyPopulate(query, ["author", "comments.user"]);
-    expect(query.populate).toHaveBeenCalledTimes(2);
-    expect(query.populate).toHaveBeenCalledWith("author");
-    expect(query.populate).toHaveBeenCalledWith("comments.user");
-    expect(result).toBe(query);
+  test("ignores empty string param", () => {
+    const fields = applyPopulate("");
+    expect(fields).toEqual([]);
   });
 
-  test("applies default populate if no param", () => {
-    const defaultPopulate = ["profile", "posts"];
-    const result = applyPopulate(query, undefined, defaultPopulate);
-    expect(query.populate).toHaveBeenCalledTimes(2);
-    expect(query.populate).toHaveBeenCalledWith("profile");
-    expect(query.populate).toHaveBeenCalledWith("posts");
-    expect(result).toBe(query);
+  test("ignores empty array", () => {
+    const fields = applyPopulate([]);
+    expect(fields).toEqual([]);
   });
 
-  test("returns query without populate if no fields", () => {
-    const result = applyPopulate(query, "", []);
-    expect(query.populate).not.toHaveBeenCalled();
-    expect(result).toBe(query);
-  });
-});
-
-describe("applyPopulate - Edge Cases", () => {
-  let query;
-
-  beforeEach(() => {
-    query = {
-      populate: vi.fn().mockReturnThis(),
-    };
+  test("ignores non-string, non-array input", () => {
+    const fields = applyPopulate(123);
+    expect(fields).toEqual([]);
   });
 
-  test("ignores duplicate populate fields", () => {
-    const result = applyPopulate(query, "author,author,comments.user");
-    expect(query.populate).toHaveBeenCalledTimes(2);
-    expect(query.populate).toHaveBeenCalledWith("author");
-    expect(query.populate).toHaveBeenCalledWith("comments.user");
-    expect(result).toBe(query);
+  test("deduplicates repeated fields", () => {
+    const fields = applyPopulate("author,author,comments.user");
+    expect(fields).toEqual(["author", "comments.user"]);
   });
 
-  test("ignores empty strings in populate param", () => {
-    const result = applyPopulate(query, "author,,comments.user,");
-    expect(query.populate).toHaveBeenCalledTimes(2);
-    expect(query.populate).toHaveBeenCalledWith("author");
-    expect(query.populate).toHaveBeenCalledWith("comments.user");
-    expect(result).toBe(query);
+  test("skips empty entries in string", () => {
+    const fields = applyPopulate("author,, ,comments.user,");
+    expect(fields).toEqual(["author", "comments.user"]);
   });
 
-  test("handles populate param as empty array", () => {
-    const result = applyPopulate(query, []);
-    expect(query.populate).not.toHaveBeenCalled();
-    expect(result).toBe(query);
-  });
-
-  test("handles non-string, non-array populate param gracefully", () => {
-    const result = applyPopulate(query, 12345);
-    expect(query.populate).not.toHaveBeenCalled();
-    expect(result).toBe(query);
-  });
-
-  test("applies nested populate when given complex paths", () => {
-    const result = applyPopulate(query, ["author", "comments.user.profile"]);
-    expect(query.populate).toHaveBeenCalledTimes(2);
-    expect(query.populate).toHaveBeenCalledWith("author");
-    expect(query.populate).toHaveBeenCalledWith("comments.user.profile");
-    expect(result).toBe(query);
+  test("handles nested paths", () => {
+    const fields = applyPopulate(["user.profile", "comments.author"]);
+    expect(fields).toEqual(["user.profile", "comments.author"]);
   });
 });

@@ -42,7 +42,7 @@ export default function queryParser(query) {
   let unknownOperatorFound = false;
 
   for (const key in query) {
-    if (['limit', 'page', 'sort', 'select', 'fields'].includes(key)) continue;
+    if (['limit', 'page', 'sort', 'select', 'fields','populate'].includes(key)) continue;
 
     const value = query[key];
 

@@ -5,6 +5,7 @@
   "main": "./src/index.js",
   "scripts": {
     "test": "npx vitest run --reporter verbose",
+    "test:live": "node ./tests/live/index.js",
     "lint": "eslint ."
   },
   "type": "module",
