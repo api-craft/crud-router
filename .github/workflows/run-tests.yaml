@@ -1,0 +1,38 @@
+name: Run Vitest Tests on PR (Custom Setup)
+
+on:
+  pull_request:
+    branches:
+      - main
+      - stage
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Node.js manually
+        run: |
+          NODE_VERSION=22.2.0
+          curl -fsSL https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.xz -o node.tar.xz
+          tar -xf node.tar.xz
+          sudo mv node-v$NODE_VERSION-linux-x64 /opt/node
+          echo "/opt/node/bin" >> $GITHUB_PATH
+          node -v
+          npm -v
+
+      - name: Install pnpm manually
+        run: |
+          npm install -g pnpm@8
+          pnpm -v
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run Vitest tests with coverage
+        run: pnpm test
