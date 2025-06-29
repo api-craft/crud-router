@@ -2,6 +2,7 @@ import express from "express";
 import queryParser from "./queryParser.js";
 import parseProjection from "./parseProjection.js";
 import applyPopulate from "./applyPopulate.js";
+import sanitizeResponse from "./sanitizeResponse.js";
 
 /**
  * Create a CRUD router for a Mongoose model
@@ -17,9 +18,8 @@ export default function createCrud(model, options = {}) {
     hide = {}, // blocklists per route
     middlewares = {},
     hooks = {},
-    isSafe = false,
   } = options;
-
+  //console.log("Excluded routes:", excluded);
   function normalizePopulate(populateParam) {
     let input = populateParam;
     if (Array.isArray(populateParam)) {
@@ -34,12 +34,13 @@ export default function createCrud(model, options = {}) {
   }
 
   // ========== GET ALL ==========
-  if (!excluded.includes("getAll") && !isSafe) {
+  if (!excluded.includes("getAll")) {
     router.get("/", ...(middlewares.getAll || []), async (req, res) => {
       try {
         if (hooks.beforeGetAll) await hooks.beforeGetAll(req);
 
         const { filters, limit, pagination } = queryParser(req.query);
+
         const projection = parseProjection(req.query.fields, hide.getAll, model);
 
         let query = model
@@ -51,8 +52,9 @@ export default function createCrud(model, options = {}) {
         if (populateFields.length) query = query.populate(populateFields);
 
         const results = await query.lean();
+        const sanitizedResults = sanitizeResponse(results, hide.getAll || []);
 
-        if (hooks.afterGetAll) await hooks.afterGetAll(results);
+        if (hooks.afterGetAll) await hooks.afterGetAll(sanitizedResults);
         res.json(results);
       } catch (err) {
         res.status(500).json({ error: err.message });
@@ -66,7 +68,7 @@ export default function createCrud(model, options = {}) {
       try {
         if (hooks.beforeGetById) await hooks.beforeGetById(req.params.id);
 
-        const projection = parseProjection(req.query.fields, hide.getAll, model);
+        const projection = parseProjection(req.query.fields, hide.getOne, model);
 
         let query = model.findById(req.params.id, projection);
         const populateFields = applyPopulate(normalizePopulate(req.query.populate));
@@ -75,8 +77,11 @@ export default function createCrud(model, options = {}) {
         const item = await query.lean();
         if (!item) return res.status(404).json({ error: "Not found" });
 
-        if (hooks.afterGetById) await hooks.afterGetById(item);
-        res.json(item);
+        const sanitizedItem = sanitizeResponse(item, hide.getOne || []);
+
+        if (hooks.afterGetById) await hooks.afterGetById(sanitizedItem);
+
+        res.json(sanitizedItem);
       } catch (err) {
         res.status(500).json({ error: err.message });
       }
@@ -102,8 +107,9 @@ export default function createCrud(model, options = {}) {
     });
   }
 
+
   // ========== BULK UPDATE ==========
-  if (!excluded.includes("update") && !isSafe) {
+  if (!excluded.includes("updateBulk")) {
     router.put("/bulk", ...(middlewares.update || []), async (req, res) => {
       try {
         let updates = req.body;
@@ -129,33 +135,8 @@ export default function createCrud(model, options = {}) {
     });
   }
 
-  // ========== SINGLE UPDATE ==========
-  if (!excluded.includes("update")) {
-    router.put("/:id", ...(middlewares.update || []), async (req, res) => {
-      try {
-        let data = hooks.beforeUpdate
-          ? await hooks.beforeUpdate([
-              { filter: { _id: req.params.id }, update: req.body },
-            ])
-          : req.body;
-
-        const updatePayload = data.update || data;
-        const updated = await model.findByIdAndUpdate(req.params.id, updatePayload, {
-          new: true,
-        });
-
-        if (!updated) return res.status(404).json({ error: "Not found" });
-
-        if (hooks.afterUpdate) await hooks.afterUpdate(updated);
-        res.json(updated);
-      } catch (err) {
-        res.status(400).json({ error: err.message });
-      }
-    });
-  }
-
-  // ========== BULK DELETE ==========
-  if (!excluded.includes("remove") && !isSafe) {
+    // ========== BULK DELETE ==========
+  if (!excluded.includes("removeBulk")) {
     router.delete("/bulk", ...(middlewares.remove || []), async (req, res) => {
       try {
         let filters = req.body;
@@ -170,6 +151,31 @@ export default function createCrud(model, options = {}) {
 
         if (hooks.afterDelete) await hooks.afterDelete(result);
         res.json(result);
+      } catch (err) {
+        res.status(400).json({ error: err.message });
+      }
+    });
+  }
+
+  // ========== SINGLE UPDATE ==========
+  if (!excluded.includes("update")) {
+    router.put("/:id", ...(middlewares.update || []), async (req, res) => {
+      try {
+        let data = hooks.beforeUpdate
+          ? await hooks.beforeUpdate([
+            { filter: { _id: req.params.id }, update: req.body },
+          ])
+          : req.body;
+
+        const updatePayload = data.update || data;
+        const updated = await model.findByIdAndUpdate(req.params.id, updatePayload, {
+          new: true,
+        });
+
+        if (!updated) return res.status(404).json({ error: "Not found" });
+
+        if (hooks.afterUpdate) await hooks.afterUpdate(updated);
+        res.json(updated);
       } catch (err) {
         res.status(400).json({ error: err.message });
       }
