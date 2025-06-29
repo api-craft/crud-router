@@ -2,7 +2,7 @@ import { describe, it, vi, expect, beforeAll, afterAll } from "vitest";
 import mongoose, { model, Schema } from "mongoose";
 import request from "supertest";
 import express from "express";
-import createCrud from "../src/createCrudRouter.js";
+import createCrud from "../../src/createCrudRouter.js";
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -132,7 +132,7 @@ describe("createCrudRouter - Full Edge Case Test", () => {
   it("should bulk update items", async () => {
     const docs = await Dummy.find({ category: "bulk" });
     const res = await request(app).put("/api/dummy/bulk").send(
-      docs.map((doc, i) => ({
+      docs.map((doc) => ({
         filter: { _id: doc._id },
         update: { $set: { price: doc.price + 100 } }
       }))
