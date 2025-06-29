@@ -115,6 +115,19 @@ describe("createCrudRouter - Projections Feature Tests with blocklist (hide)", (
     });
   });
 
+  it("should handle empty ?fields= query", async () => {
+    const app = createApp({ getAll: ["description"] });
+    const res = await request(app).get("/api/products?fields=");
+
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);
+    res.body.forEach((item) => {
+      expect(item).not.toHaveProperty("description");
+      expect(item).toHaveProperty("name");
+      expect(item).toHaveProperty("price");
+    });
+  });
+
   it("should allow subset of allowed fields with fields param", async () => {
     const app = createApp({ getAll: ["description"] });
     const res = await request(app).get("/api/products?fields=name");

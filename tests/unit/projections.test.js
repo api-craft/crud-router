@@ -27,6 +27,12 @@ describe("parseProjection utility with blocklist (hide) support", () => {
     expect(parseProjection(input, blocklist, mockModel)).toEqual(expected);
   });
 
+  test("omit blocklisted fields even if they are included in input", () => {
+    const input = "name,email,password,age,secret";
+    const expected = { name: 1, email: 1, age: 1 };
+    expect(parseProjection(input, blocklist, mockModel)).toEqual(expected);
+  });
+
   test("trims spaces, ignores empty fields and excludes blocklist", () => {
     const input = " name , email , , password , age ";
     const expected = { name: 1, email: 1, age: 1 };
@@ -73,13 +79,31 @@ describe("parseProjection - Edge Cases with blocklist", () => {
     expect(parseProjection(input, blocklist, mockModel)).toEqual(expected);
   });
 
-  test("returns empty projection for empty string", () => {
-    expect(parseProjection("", blocklist, mockModel)).toEqual({});
+  test("returns blocklist projection for empty string", () => {
+    expect(parseProjection("", blocklist, mockModel)).toEqual({
+      name: 1,
+      email: 1,
+      age: 1,
+      "author.name": 1,
+      "comments.text": 1,
+      field_1: 1,
+      "field$2": 1,
+      "field-3": 1,
+    });
   });
 
-  test("ignores fields with only whitespace", () => {
+  test("return with hided fields with only whitespace", () => {
     const input = "  ,  ,  ";
-    expect(parseProjection(input, blocklist, mockModel)).toEqual({});
+    expect(parseProjection("", blocklist, mockModel)).toEqual({
+      name: 1,
+      email: 1,
+      age: 1,
+      "author.name": 1,
+      "comments.text": 1,
+      field_1: 1,
+      "field$2": 1,
+      "field-3": 1,
+    });
   });
 
   test("handles fields with special characters excluding blocklist", () => {
