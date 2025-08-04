@@ -22,10 +22,7 @@ const User = mongoose.models.User || model("User", UserSchema);
 const app = express();
 app.use(express.json());
 app.use('/users',createCrud(User,{
-  hide: {
-    getAll: ["password"],
-    getOne: ["password"],
-  },
+  hide: ["password"],
 }))
 // GET /users?fields=name,email
 app.get("/test_users", async (req, res) => {

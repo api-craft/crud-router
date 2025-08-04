@@ -42,7 +42,7 @@ export default function queryParser(query) {
   let unknownOperatorFound = false;
 
   for (const key in query) {
-    if (['limit', 'page', 'sort', 'select', 'fields','populate'].includes(key)) continue;
+    if (['limit', 'page', 'select', 'fields','populate'].includes(key)) continue;
 
     const value = query[key];
 
@@ -67,6 +67,21 @@ export default function queryParser(query) {
     filters[key] = isNaN(value) ? value : Number(value);
   }
 
+  // ===== Sort Parsing =====
+  let sort = null;
+  if (query.sort) {
+    sort = {};
+    const fields = query.sort.split(',').map(f => f.trim()).filter(Boolean);
+
+    for (const field of fields) {
+      if (field.startsWith('-')) {
+        sort[field.substring(1)] = -1; // descending
+      } else {
+        sort[field] = 1; // ascending
+      }
+    }
+  }
+
   if (unknownOperatorFound) {
     return {
       filters: { _id: { $exists: false } }, // Ensures no documents match
@@ -78,6 +93,7 @@ export default function queryParser(query) {
 
   return {
     filters,
+    sort,
     page,
     limit,
     pagination: { skip, limit },

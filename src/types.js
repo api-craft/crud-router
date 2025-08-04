@@ -2,15 +2,11 @@
 /**
  * @typedef {Object} CrudOptions
  * 
- * @property {Object} [projections] - Optional field selection per route
- * @property {string[]} [projections.getAll]
- * @property {string[]} [projections.getById]
- * @property {string[]} [projections.create] - Fields to return after creation
- * @property {string[]} [projections.update] - Fields to return after update
- * @property {string[]} [projections.remove] - Fields to return after deletion
+ * @property {Object} [hide] - Optional field selection per route
+ * @property {string[]} [hide.getAll]
+ * @property {string[]} [hide.getOne]
  * 
  * @property {string[]} [excluded] - Array of methods to exclude (e.g. ["getAll", "getById", "create"])
- * @property {boolean} [isSafe] - If true, disables bulk operations (create, update, delete)
  * 
  * @property {Object} [middlewares] - Optional Express middlewares for each route
  * @property {import("express").RequestHandler[]} [middlewares.getAll]
