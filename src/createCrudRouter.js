@@ -39,27 +39,47 @@ export default function createCrud(model, options = {}) {
       try {
         if (hooks.beforeGetAll) await hooks.beforeGetAll(req);
 
-        const { filters: userFilters, limit, pagination } = queryParser(req.query);
+        const {
+          filters: userFilters,
+          limit,
+          pagination,
+        } = queryParser(req.query);
         const filters = {
           ...userFilters,
           ...(req.mongoFilters || {}),
         };
 
-        const projection = parseProjection(req.query.fields, hide.getAll, model);
-        const populateFields = applyPopulate(normalizePopulate(req.query.populate));
+        const projection = parseProjection(
+          req.query.fields,
+          hide.getAll,
+          model
+        );
+        const populateFields = applyPopulate(
+          normalizePopulate(req.query.populate)
+        );
 
         let query = model.find(filters, projection);
         if (populateFields.length) query = query.populate(populateFields);
-        query = query.skip(pagination.skip).limit(limit);
 
-        const [results, total] = await Promise.all([
-          query.lean(),
-          model.countDocuments(filters),
-        ]);
+        let results, total, totalPages, currentPage;
+
+        // ✅ Apply pagination only if limit & page are provided
+        if (req.query.limit && req.query.page) {
+          query = query.skip(pagination.skip).limit(limit);
+          [results, total] = await Promise.all([
+            query.lean(),
+            model.countDocuments(filters),
+          ]);
+          totalPages = Math.ceil(total / limit);
+          currentPage = Math.floor(pagination.skip / limit) + 1;
+        } else {
+          results = await query.lean();
+          total = results.length;
+          totalPages = 1;
+          currentPage = 1;
+        }
 
         const sanitizedResults = sanitizeResponse(results, hide.getAll || []);
-        const totalPages = Math.ceil(total / limit);
-        const currentPage = Math.floor(pagination.skip / limit) + 1;
 
         if (hooks.afterGetAll) await hooks.afterGetAll(sanitizedResults);
 
@@ -67,11 +87,15 @@ export default function createCrud(model, options = {}) {
           data: sanitizedResults,
           meta: {
             total,
-            limit,
-            currentPage,
-            totalPages,
-            hasNextPage: currentPage < totalPages,
-            hasPrevPage: currentPage > 1,
+            ...(req.query.limit && req.query.page
+              ? {
+                  limit,
+                  currentPage,
+                  totalPages,
+                  hasNextPage: currentPage < totalPages,
+                  hasPrevPage: currentPage > 1,
+                }
+              : { pagination: false }),
           },
         });
       } catch (err) {
@@ -80,17 +104,22 @@ export default function createCrud(model, options = {}) {
     });
   }
 
-
   // ========== GET BY ID ==========
   if (!excluded.includes("getById")) {
     router.get("/:id", ...(middlewares.getById || []), async (req, res) => {
       try {
         if (hooks.beforeGetById) await hooks.beforeGetById(req);
 
-        const projection = parseProjection(req.query.fields, hide.getOne, model);
+        const projection = parseProjection(
+          req.query.fields,
+          hide.getOne,
+          model
+        );
 
         let query = model.findById(req.params.id, projection);
-        const populateFields = applyPopulate(normalizePopulate(req.query.populate));
+        const populateFields = applyPopulate(
+          normalizePopulate(req.query.populate)
+        );
         if (populateFields.length) query = query.populate(populateFields);
 
         const item = await query.lean();
@@ -125,7 +154,6 @@ export default function createCrud(model, options = {}) {
       }
     });
   }
-
 
   // ========== BULK UPDATE ==========
   if (!excluded.includes("updateBulk")) {
@@ -162,7 +190,8 @@ export default function createCrud(model, options = {}) {
         if (!Array.isArray(filters))
           return res.status(400).json({ error: "Expected array of filters" });
 
-        if (hooks.beforeDelete) filters = await hooks.beforeDelete(req, filters);
+        if (hooks.beforeDelete)
+          filters = await hooks.beforeDelete(req, filters);
 
         const result = await model.bulkWrite(
           filters.map((f) => ({ deleteOne: { filter: f } }))
@@ -182,14 +211,18 @@ export default function createCrud(model, options = {}) {
       try {
         let data = hooks.beforeUpdate
           ? await hooks.beforeUpdate([
-            { req: req, filter: { _id: req.params.id }, update: req.body },
-          ])
+              { req: req, filter: { _id: req.params.id }, update: req.body },
+            ])
           : req.body;
 
         const updatePayload = data.update || data;
-        const updated = await model.findByIdAndUpdate(req.params.id, updatePayload, {
-          new: true,
-        });
+        const updated = await model.findByIdAndUpdate(
+          req.params.id,
+          updatePayload,
+          {
+            new: true,
+          }
+        );
 
         if (!updated) return res.status(404).json({ error: "Not found" });
 
