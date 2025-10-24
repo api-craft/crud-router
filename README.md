@@ -1,4 +1,4 @@
-﻿# CRUD ROUTER
+﻿﻿# CRUD ROUTER
 
 ![NPM Downloads](https://img.shields.io/npm/dy/%40api-craft%2Fcrud-router?logo=npm)
 ![NPM Downloads](https://img.shields.io/npm/dm/%40api-craft%2Fcrud-router?logo=npm)
@@ -47,6 +47,8 @@ pnpm add @api-craft/crud-router
 ---
 
 ## Usage
+
+> **💡 Important:** When using `autoExposeFromCraft`, always pass your mongoose instance (see [Using Your Mongoose Instance](#using-your-mongoose-instance-recommended)) to avoid version conflicts.
 
 ### Manual Router Setup
 
@@ -163,13 +165,15 @@ app.use(express.json());
 
 await mongoose.connect(process.env.MONGO_URI);
 
-// Auto-scan models directory and mount CRUD routers
-await autoExposeFromCraft(app);
+// RECOMMENDED: Pass your mongoose instance to avoid version conflicts
+await autoExposeFromCraft(app, { mongoose });
 
 app.listen(3000, () => {
   console.log('Server running on port 3000');
 });
 ```
+
+> **💡 Best Practice:** Always pass your mongoose instance via `{ mongoose }` or `{ connection }` to avoid conflicts between different mongoose versions in your node_modules tree.
 
 **Configuration Options:**
 
@@ -180,6 +184,118 @@ app.listen(3000, () => {
 - `routes.[ModelName].path`: Custom path for model (default: kebab-case pluralized model name)
 - `routes.[ModelName].excluded`: Array of methods to exclude (`getAll`, `getById`, `create`, `update`, `remove`, `updateBulk`, `removeBulk`)
 - `routes.[ModelName].hide`: Object with `getAll` and `getOne` arrays of fields to hide
+
+---
+
+### Supported Model Export Patterns
+
+The auto-expose feature intelligently handles various export patterns:
+
+**Default Export - Model:**
+```js
+// User.js or user.model.js
+import mongoose from 'mongoose';
+const schema = new mongoose.Schema({ name: String });
+export default mongoose.model('User', schema);
+```
+
+**Default Export - Schema:**
+```js
+// Product.js or product.model.js
+import mongoose from 'mongoose';
+export default new mongoose.Schema({ name: String, price: Number });
+// Model name inferred from filename: Product
+```
+
+**Named Export - Model:**
+```js
+// category.model.js
+import mongoose from 'mongoose';
+const schema = new mongoose.Schema({ title: String });
+export const Category = mongoose.model('Category', schema);
+```
+
+**Named Export - Schema:**
+```js
+// tag.model.js
+import mongoose from 'mongoose';
+export const TagSchema = new mongoose.Schema({ label: String });
+// Model name inferred from filename: Tag
+```
+
+**Mixed Exports:**
+```js
+// Order.js
+import mongoose from 'mongoose';
+const OrderSchema = new mongoose.Schema({ total: Number });
+const Order = mongoose.model('Order', OrderSchema);
+export default Order;
+export { OrderSchema }; // Also exported for reuse
+```
+
+**Grouped Exports:**
+```js
+// index.js
+import User from './User.js';
+import Product from './Product.js';
+export const models = { User, Product };
+```
+
+**Factory Functions:**
+```js
+// Multi-tenant pattern
+export default (connection) => {
+  const schema = new connection.Schema({ name: String });
+  return connection.model('Tenant', schema);
+};
+```
+
+**File Naming Conventions:**
+- `User.js`, `user.js` → Model name: `User`
+- `user.model.js`, `UserModel.js` → Model name: `User`
+- `user.schema.js`, `user-schema.js` → Model name: `User`
+- The suffix `.model`, `.schema`, `.entity`, `.collection` is automatically removed
+
+---
+
+### Using Your Mongoose Instance (Recommended)
+
+**Why pass your mongoose instance?**
+- ✅ Avoids mongoose version conflicts between your app and node_modules
+- ✅ Ensures models are registered on the same connection instance
+- ✅ Prevents "Schema hasn't been registered" errors
+- ✅ Required for multi-tenant or multi-database setups
+
+```js
+import mongoose from 'mongoose';
+import { autoExposeFromCraft } from '@api-craft/crud-router';
+
+// Method 1: Pass mongoose instance (RECOMMENDED)
+await mongoose.connect(process.env.MONGO_URI);
+await autoExposeFromCraft(app, { mongoose });
+
+// Method 2: Pass specific connection (multi-tenant setups)
+const tenantConn = await mongoose.createConnection(process.env.TENANT_DB_URI);
+await autoExposeFromCraft(app, { 
+  connection: tenantConn,
+  mountBase: '/api/tenant'
+});
+
+// Method 3: Store in app locals (alternative)
+app.locals.mongoose = mongoose;
+await autoExposeFromCraft(app); // Will use app.locals.mongoose.connection
+
+// Method 4: Using app.set (Express pattern)
+app.set('mongoose', mongoose);
+await autoExposeFromCraft(app); // Will use app.get('mongoose').connection
+```
+
+**Connection Resolution Priority:**
+1. `opts.connection` (direct connection object)
+2. `opts.mongoose.connection` (mongoose instance)
+3. `app.locals.mongoose.connection` (stored in app locals)
+4. `app.get('mongoose').connection` (stored in app settings)
+5. `mongoose.connection` (global fallback - not recommended)
 
 ---
 
