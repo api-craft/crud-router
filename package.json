@@ -38,6 +38,7 @@
   "packageManager": "pnpm@10.6.3",
   "dependencies": {
     "express": "^5.1.0",
+    "js-yaml": "^4.1.0",
     "mongoose": "^8.16.0"
   },
   "devDependencies": {

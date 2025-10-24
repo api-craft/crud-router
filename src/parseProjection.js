@@ -48,9 +48,11 @@ export default function parseProjection(selectParam, blocklist = [], model) {
   }
 
   // Case: selectParam is undefined → full field access minus blocklist
-  if (selectParam === undefined || selectParam == "" && model) {
-    for (const field of Object.keys(model.schema.paths)) {
-      if (!blocked.has(field)) projection[field] = 1;
+  if (selectParam === undefined) {
+    if (model) {
+      for (const field of Object.keys(model.schema.paths)) {
+        if (!blocked.has(field)) projection[field] = 1;
+      }
     }
   }
 
