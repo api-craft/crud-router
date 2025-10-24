@@ -45,49 +45,49 @@ describe("createCrudRouter - Full Edge Case Test", () => {
   it("should return all items without filters", async () => {
     const res = await request(app).get("/api/dummy");
     expect(res.status).toBe(200);
-    expect(res.body.length).toBe(3);
+    expect(res.body.data.length).toBe(3);
   });
 
   it("should filter by gt price", async () => {
     const res = await request(app).get("/api/dummy?price=gt-150");
     expect(res.status).toBe(200);
-    expect(res.body.length).toBe(2);
+    expect(res.body.data.length).toBe(2);
   });
 
   it("should filter by lt price", async () => {
     const res = await request(app).get("/api/dummy?price=lt-150");
     expect(res.status).toBe(200);
-    expect(res.body.length).toBe(1);
+    expect(res.body.data.length).toBe(1);
   });
 
   it("should filter by in category", async () => {
     const res = await request(app).get("/api/dummy?category=in-tools,electronics");
     expect(res.status).toBe(200);
-    expect(res.body.length).toBe(3);
+    expect(res.body.data.length).toBe(3);
   });
 
   it("should paginate results correctly", async () => {
     const res = await request(app).get("/api/dummy?limit=1&page=2");
     expect(res.status).toBe(200);
-    expect(res.body.length).toBe(1);
+    expect(res.body.data.length).toBe(1);
   });
 
   it("should support default equality filtering", async () => {
     const res = await request(app).get("/api/dummy?price=100");
     expect(res.status).toBe(200);
-    expect(res.body[0].price).toBe(100);
+    expect(res.body.data[0].price).toBe(100);
   });
 
   it("should handle unknown operators gracefully (return empty)", async () => {
     const res = await request(app).get("/api/dummy?price=unknown-9999");
     expect(res.status).toBe(200);
-    expect(res.body.length).toBe(0);
+    expect(res.body.data.length).toBe(0);
   });
 
   it("should handle unknown operators gracefully (mix)", async () => {
     const res = await request(app).get("/api/dummy?name=Product A&price=unknown-9999");
     expect(res.status).toBe(200);
-    expect(res.body.length).toBe(0);
+    expect(res.body.data.length).toBe(0);
   });
 
   it("should respect excluded routes", () => {

@@ -62,30 +62,30 @@ describe("createCrud - populate only via query param", () => {
   it("should return plain ObjectIds when no populate param", async () => {
     const res = await request(app).get("/api/posts");
     expect(res.status).toBe(200);
-    expect(typeof res.body[0].author).toBe("string"); // ObjectId
-    expect(typeof res.body[0].editor).toBe("string");
+    expect(typeof res.body.data[0].author).toBe("string"); // ObjectId
+    expect(typeof res.body.data[0].editor).toBe("string");
   });
 
   it("should populate author only when populate=author", async () => {
     const res = await request(app).get("/api/posts?populate=author");
     expect(res.status).toBe(200);
-    expect(res.body.length).toBeGreaterThan(0); // Add this line
-    expect(res.body[0].author).toHaveProperty("name", "Author User");
-    expect(typeof res.body[0].editor).toBe("string");
+    expect(res.body.data.length).toBeGreaterThan(0); // Add this line
+    expect(res.body.data[0].author).toHaveProperty("name", "Author User");
+    expect(typeof res.body.data[0].editor).toBe("string");
   });
 
   it("should populate both author and editor when populate=author,editor", async () => {
     const res = await request(app).get("/api/posts?populate=author,editor");
     expect(res.status).toBe(200);
-    expect(res.body[0].author).toHaveProperty("name", "Author User");
-    expect(res.body[0].editor).toHaveProperty("name", "Editor User");
+    expect(res.body.data[0].author).toHaveProperty("name", "Author User");
+    expect(res.body.data[0].editor).toHaveProperty("name", "Editor User");
   });
 
   it("should ignore empty populate string", async () => {
     const res = await request(app).get("/api/posts?populate=, ,");
     expect(res.status).toBe(200);
-    expect(typeof res.body[0].author).toBe("string");
-    expect(typeof res.body[0].editor).toBe("string");
+    expect(typeof res.body.data[0].author).toBe("string");
+    expect(typeof res.body.data[0].editor).toBe("string");
   });
 
   it("should handle populate as array (simulate controller behavior)", async () => {
@@ -94,7 +94,7 @@ describe("createCrud - populate only via query param", () => {
       .query({ populate: ["author", "editor"] });
 
     expect(res.status).toBe(200);
-    expect(res.body[0].author).toHaveProperty("name", "Author User");
-    expect(res.body[0].editor).toHaveProperty("name", "Editor User");
+    expect(res.body.data[0].author).toHaveProperty("name", "Author User");
+    expect(res.body.data[0].editor).toHaveProperty("name", "Editor User");
   });
 });
